@@ -2,6 +2,12 @@
 name = "twitch_comment_stream"
 version = "0.1.0"
 edition = "2021"
+authors = ["Yuta Hirata"]
+description = "A library to stream comments from Twitch"
+license = "MIT"
+repository = "https://github.com/MorrisFreeman/twitch_comment_stream"
+keywords = ["twitch", "comment", "stream"]
+categories = ["networking", "irc", "websocket"]
 
 [dependencies]
 tokio = { version = "1.40", features = ["full"] }

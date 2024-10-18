@@ -6,5 +6,7 @@ edition = "2021"
 [dependencies]
 tokio = { version = "1.40", features = ["full"] }
 tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
-futures-channel = "0.3"
 futures-util = "0.3"
+
+[dev-dependencies]
+mockall = "0.13"

@@ -46,23 +46,50 @@ impl TwitchCommentStream {
     }
 
     pub async fn next(&mut self) -> Result<Comment, Box<dyn std::error::Error>> {
-        loop {
-            let message = self.ws_stream.as_mut().unwrap().next().await.unwrap()?;
+        while let Some(message) = self.ws_stream.as_mut().unwrap().next().await {
+            let message = message?;
             let text = message.to_text()?;
 
-            if text.starts_with("PING") {
-                self.write_message("PONG :tmi.twitch.tv\r\n".to_string()).await?;
+            if self.handle_ping(&text).await? {
                 continue;
             }
 
-            // メッセージを解析
-            let parts: Vec<&str> = text.split(' ').collect();
-            if parts.len() >= 4 && parts[1] == "PRIVMSG" {
-                let user = parts[0].trim_start_matches(':').split('!').next().unwrap_or("").to_string();
-                let body = parts[3..].join(" ").trim_start_matches(':').trim_end().to_string();
-
-                return Ok(Comment { user, body });
+            if let Some(comment) = self.parse_message(&text) {
+                return Ok(comment);
             }
         }
+        Err("Stream ended unexpectedly".into())
+    }
+
+    async fn handle_ping(&mut self, text: &str) -> Result<bool, Box<dyn std::error::Error>> {
+        if text.starts_with("PING") {
+            self.write_message("PONG :tmi.twitch.tv\r\n".to_string()).await?;
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
+    fn parse_message(&self, text: &str) -> Option<Comment> {
+        let parts = text.splitn(4, ' ').collect::<Vec<&str>>();
+        if parts[1] == "PRIVMSG" {
+            let user = parts[0].trim_start_matches(':').split('!').next().unwrap().to_string();
+            let body = parts[3].trim_start_matches(':').trim_end().to_string();
+            Some(Comment { user, body })
+        } else {
+            None
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_message() {
+        let stream = TwitchCommentStream::new("test_channel".to_string());
+        let comment = stream.parse_message(":test_user!test_user@test_user.tmi.twitch.tv PRIVMSG #test_channel :Hello, world!\r\n").unwrap();
+        assert_eq!(comment.user, "test_user");
+        assert_eq!(comment.body, "Hello, world!");
     }
 }
